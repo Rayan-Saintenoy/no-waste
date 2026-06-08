@@ -1,0 +1,21 @@
+meta {
+  name: GET a product
+  type: http
+  seq: 2
+}
+
+get {
+  url: https://world.openfoodfacts.org/api/v3/product/3017620420702?fields=product_name,image_url,image_front_url,categories,categories_hierarchy,brands,quantity,labels,product_name_fr&lc=fr
+  body: none
+  auth: inherit
+}
+
+params:query {
+  fields: product_name,image_url,image_front_url,categories,categories_hierarchy,brands,quantity,labels,product_name_fr
+  lc: fr
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

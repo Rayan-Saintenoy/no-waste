@@ -1,0 +1,30 @@
+meta {
+  name: Get Session Token
+  type: http
+  seq: 1
+}
+
+post {
+  url: https://world.openfoodfacts.org/cgi/session.pl
+  body: formUrlEncoded
+  auth: none
+}
+
+params:query {
+  : 
+}
+
+headers {
+  User-Agent: NoWaste/0.1 (patovore59@gmail.com)
+  Accept: application/json
+}
+
+body:form-urlencoded {
+  user_id: nanou59260
+  password: Nanou5926078?
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
