@@ -1,7 +1,7 @@
 import db from "@/app/database/database";
 import { scheduleExpiryNotification } from "@/app/utils/notification";
 import { Feather } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import { Beef, Carrot, CupSoda, Milk } from "lucide-react-native";
@@ -62,7 +62,7 @@ export default function ScanScreen() {
     );
   }
 
-  const handleBarcodeScanned = ({ data }) => {
+  const handleBarcodeScanned = ({ data }: { data: string }) => {
     if (isScanning.current) return;
     isScanning.current = true;
     setScanned(true);
@@ -73,10 +73,10 @@ export default function ScanScreen() {
     }, 3000);
   };
 
-  const onDateChange = (event, selectedDate) => {
+  const onDateChange = (_event: DateTimePickerEvent, selectedDate: Date | undefined) => {
     if (Platform.OS === "android") {
       setShowDatePicker(false);
-      if (event.type === "set" && selectedDate) {
+      if (_event.type === "set" && selectedDate) {
         setForm({ ...form, date: selectedDate.toISOString().split("T")[0] });
         setTempDate(selectedDate);
       }
@@ -352,7 +352,15 @@ export default function ScanScreen() {
   );
 }
 
-const CatBtn = ({ label, icon: Icon, active, onPress, col }) => (
+interface CatBtnProps {
+  label: string;
+  icon: React.ComponentType<{ size: number; color: string }>;
+  active: boolean;
+  onPress: () => void;
+  col: string;
+}
+
+const CatBtn: React.FC<CatBtnProps> = ({ label, icon: Icon, active, onPress, col }) => (
   <TouchableOpacity
     onPress={onPress}
     style={[

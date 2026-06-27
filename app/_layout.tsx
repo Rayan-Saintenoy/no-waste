@@ -6,10 +6,11 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 
-// Configuration du comportement des notifications (quand l'app est ouverte)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -19,7 +20,6 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    // 1. Initialisation de la BDD
     try {
       initDatabase();
       console.log("Base de données initialisée !");
@@ -27,7 +27,6 @@ export default function RootLayout() {
       console.error("Erreur BDD", e);
     }
 
-    // 2. Demande des permissions pour les notifications au premier lancement
     const requestPermissions = async () => {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -46,7 +45,6 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
-        {/* On retire (tabs) car tu ne l'utilises plus */}
         <Stack.Screen name="index" />
         <Stack.Screen name="fridge" />
         <Stack.Screen name="scan" />

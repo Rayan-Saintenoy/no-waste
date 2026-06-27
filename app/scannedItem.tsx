@@ -2,7 +2,7 @@ import db from "@/app/database/database";
 import { parseWeightToKg } from "@/app/utils/format";
 import { scheduleExpiryNotification } from "@/app/utils/notification";
 import { Feather } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -19,19 +19,45 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+interface Product {
+  barre_code: string;
+  product_name_fr: string;
+  brands: string;
+  marque: string;
+  image_front_url: string;
+  image_url: string
+  quantity: string;
+  product_name: string;
+  categories: string;
+  categories_hierarchy: string[];
+} 
+
 export default function ScannedItemScreen() {
+  const [stats_price_enabled, setStats_price_enabled] = useState();
+  
+  const fetchUser = async () => {
+    try {
+      const result = (await db.getFirstAsync(`SELECT stats_price_enabled FROM utilisateur LIMIT 1`));
+      if (result) {
+        setStats_price_enabled(result.stats_price_enabled);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération des stats :", error);
+    }
+  };
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { barcode } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const barcode = Array.isArray(params.barcode) ? params.barcode[0] : params.barcode;
 
   const [loading, setLoading] = useState(true);
-  const [productData, setProductData] = useState(null);
+  const [productData, setProductData] = useState<Product | null>(null);
 
   const [price, setPrice] = useState("");
   const [expiryDate, setExpiryDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // 1. Appel API au chargement
   useEffect(() => {
     const fetchProduct = async () => {
       if (!barcode) return;
@@ -39,8 +65,6 @@ export default function ScannedItemScreen() {
       try {
         setLoading(true);
 
-        // 1. Ajout de .json à la fin du segment de l'ID pour forcer le format
-        // 2. Vérification que le barcode est bien encodé
         const url = `https://world.openfoodfacts.org/api/v3/product/${encodeURIComponent(barcode)}.json?fields=product_name,image_url,image_front_url,brands,quantity,categories,categories_hierarchy,labels,product_name_fr`;
 
         const response = await fetch(url, {
@@ -52,7 +76,6 @@ export default function ScannedItemScreen() {
           },
         });
 
-        // Lecture du type de contenu
         const contentType = response.headers.get("content-type");
 
         if (!response.ok) {
@@ -70,26 +93,26 @@ export default function ScannedItemScreen() {
 
         const json = await response.json();
 
-        // OpenFoodFacts renvoie souvent un code 'product_found' ou status 1
         if (json.product && Object.keys(json.product).length > 0) {
           setProductData(json.product);
         } else {
           Alert.alert("Produit inconnu", "Ce code-barres n'est pas encore dans la base.");
           if (router.canGoBack()) router.back();
         }
-      } catch (error) {
-        console.error("Erreur Fetch:", error.message);
-        Alert.alert("Erreur", error.message || "Impossible de contacter l'API");
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("Erreur Fetch:", errorMessage);
+        Alert.alert("Erreur", errorMessage || "Impossible de contacter l'API");
       } finally {
         setLoading(false);
       }
     };
 
     if (barcode) fetchProduct();
+    fetchUser();
   }, [barcode]);
 
-  // Logique Date (iOS Inline / Android Native)
-  const onDateChange = (event, selectedDate) => {
+  const onDateChange = (_event: DateTimePickerEvent, selectedDate: Date | undefined) => {
     if (Platform.OS === "android") {
       setShowDatePicker(false);
       if (selectedDate) setExpiryDate(selectedDate);
@@ -98,19 +121,12 @@ export default function ScannedItemScreen() {
     }
   };
 
-  // 2. Fonction d'ajout en Base de données
   const handleSaveToFridge = async () => {
-    if (!price) {
-      Alert.alert("Attention", "Veuillez renseigner un prix même approximatif.");
-      return;
-    }
-
     if (productData) {
       try {
         const weightInKg = parseWeightToKg(productData.quantity);
         const formattedDate = expiryDate.toISOString().split("T")[0];
 
-        // IMPORTANT : On transforme le tableau hierarchy en texte séparé par des virgules
         const hierarchyString = productData.categories_hierarchy
           ? productData.categories_hierarchy.join(", ")
           : "";
@@ -118,17 +134,17 @@ export default function ScannedItemScreen() {
         await db.runAsync(
           `INSERT INTO produits (
             code_barre, 
-            nom_produit, 
+            nom_produit,
             marque, 
-            image_url, 
-            quantite_brute, 
+            image_url,
+            quantite_brute,
             categories, 
             categories_hierarchy, 
             poids_kg, 
             prix_achat, 
             date_peremption, 
             statut
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, // <-- IL FAUT 11 POINTS D'INTERROGATION ICI
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             barcode,
             productData.product_name_fr || productData.product_name,
@@ -138,7 +154,7 @@ export default function ScannedItemScreen() {
             productData.categories || "",
             hierarchyString,
             weightInKg,
-            parseFloat(price.replace(",", ".")),
+            parseFloat(price.replace(",", ".")) || null,
             formattedDate,
             "dans_le_frigo",
           ],
@@ -201,19 +217,24 @@ export default function ScannedItemScreen() {
             <Text style={styles.quantityText}>{productData?.quantity}</Text>
           </View>
         </View>
-
-        {/* INPUT PRIX */}
-        <Text style={styles.sectionTitle}>Prix d'achat (€)</Text>
-        <View style={styles.priceInputContainer}>
-          <TextInput
-            style={styles.priceInput}
-            placeholder="Ex: 2.50"
-            keyboardType="numeric"
-            value={price}
-            onChangeText={setPrice}
-          />
-          <Feather name="tag" size={20} color="#2E7D32" style={{ marginRight: 15 }} />
-        </View>
+        
+        {Number(stats_price_enabled) === 1 ? (
+            <>
+              {/* INPUT PRIX */}
+              <Text style={styles.sectionTitle}>Prix d'achat (€) Optionnel</Text>
+              <View style={styles.priceInputContainer}>
+                <TextInput
+                  style={styles.priceInput}
+                  placeholder="Ex: 2.50"
+                  keyboardType="numeric"
+                  value={price}
+                  onChangeText={setPrice}
+                />
+                <Feather name="tag" size={20} color="#2E7D32" style={{ marginRight: 15 }} />
+              </View>
+            </>
+          ) : null
+        }
 
         {/* Saisie Date de péremption */}
         <Text style={styles.sectionTitle}>Date de péremption</Text>

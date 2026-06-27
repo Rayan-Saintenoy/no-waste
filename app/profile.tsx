@@ -14,18 +14,28 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import db from "./database/database";
 
+type User = {
+  id?: number;
+  name: string;
+  firstname: string;
+  mail: string;
+  poids_total_sauve_kg: number;
+  argent_total_sauve_eur: number;
+  stats_price_enabled: number;
+};
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
 
-  const [user, setUser] = useState({
+  const [user, setUser] = useState<User>({
     name: "",
     firstname: "",
     mail: "",
     poids_total_sauve_kg: 0,
     argent_total_sauve_eur: 0,
+    stats_price_enabled: 0,
   });
 
-  // États pour la Modal d'édition
   const [isModalVisible, setModalVisible] = useState(false);
   const [editName, setEditName] = useState("");
   const [editFirstname, setEditFirstname] = useState("");
@@ -33,7 +43,7 @@ export default function ProfileScreen() {
 
   const fetchStats = async () => {
     try {
-      const result = await db.getFirstAsync(`SELECT * FROM utilisateur LIMIT 1`);
+      const result = (await db.getFirstAsync(`SELECT * FROM utilisateur LIMIT 1`)) as User | undefined;
       if (result) {
         setUser(result);
         setEditName(result.name);
@@ -113,16 +123,38 @@ export default function ProfileScreen() {
             <Text style={styles.statValue}>{user.poids_total_sauve_kg} kg</Text>
             <Text style={styles.statLabel}>Sauvés</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: "#FFF3E0" }]}>
-            <Feather name="dollar-sign" size={24} color="#FF9800" />
-            <Text style={styles.statValue}>{user.argent_total_sauve_eur} €</Text>
-            <Text style={styles.statLabel}>Économisés</Text>
-          </View>
+          {user.stats_price_enabled == 1 ? (
+              <View style={[styles.statCard, { backgroundColor: "#FFF3E0" }]}>
+                <Feather name="dollar-sign" size={24} color="#FF9800" />
+                <Text style={styles.statValue}>{user.argent_total_sauve_eur} €</Text>
+                <Text style={styles.statLabel}>Économisés</Text>
+              </View>
+            ) : (
+              <View style={[styles.statCard, { backgroundColor: "#fbfaf9" }]}>
+                <Feather name="dollar-sign" size={24} color="#d1d0cf" />
+                <Text style={styles.statValue}>X</Text>
+                <Text style={styles.statLabel}>Inactif</Text>
+              </View>
+            )       
+          }
+          
         </View>
 
         {/* PARTIE PARAMÈTRES GARDÉE */}
         <Text style={styles.sectionTitle}>Paramètres</Text>
         <View style={styles.menuContainer}>
+          <Link href="/settings/preferences" replace asChild>
+            <TouchableOpacity activeOpacity={0.7} style={styles.menuItem}>
+              <View style={[styles.menuIconContainer, { backgroundColor: "#fde3e3" }]}>
+                <Feather name="heart" size={20} color="#f32121" />
+              </View>
+              <View style={styles.menuTextContainer}>
+                <Text style={styles.menuTitle}>Preférences</Text>
+                <Text style={styles.menuSub}>Alertes de péremption</Text>
+              </View>
+              <Feather name="chevron-right" size={20} color="#CCC" />
+            </TouchableOpacity>
+          </Link>
           <Link href="/settings/notification" replace asChild>
             <TouchableOpacity activeOpacity={0.7} style={styles.menuItem}>
               <View style={[styles.menuIconContainer, { backgroundColor: "#E3F2FD" }]}>
@@ -217,7 +249,15 @@ export default function ProfileScreen() {
   );
 }
 
-const MenuItem = ({ icon, title, sub, color, iconCol }) => (
+type MenuItemProps = {
+  icon: React.ComponentProps<typeof Feather>["name"];
+  title: string;
+  sub: string;
+  color: string;
+  iconCol: string;
+};
+
+const MenuItem = ({ icon, title, sub, color, iconCol }: MenuItemProps) => (
   <TouchableOpacity style={styles.menuItem}>
     <View style={[styles.menuIconContainer, { backgroundColor: color }]}>
       <Feather name={icon} size={20} color={iconCol} />

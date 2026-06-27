@@ -79,8 +79,21 @@ export default function RecipesScreen() {
   );
 }
 
-// COMPOSANTS INTERNES
-const RecipeHeroCard = ({ title, time, difficulty, savedCount, color }) => (
+type RecipeHeroCardProps = {
+  title: string;
+  time: string;
+  difficulty: string;
+  savedCount: number;
+  color: string;
+};
+
+type RecipeRowItemProps = {
+  title: string;
+  time: string;
+  xp: string;
+};
+
+const RecipeHeroCard = ({ title, time, difficulty, savedCount, color }: RecipeHeroCardProps) => (
   <TouchableOpacity style={[styles.heroCard, { backgroundColor: color }]}>
     <View style={styles.heroCardContent}>
       <View style={styles.badgeSauvetage}>
@@ -104,7 +117,7 @@ const RecipeHeroCard = ({ title, time, difficulty, savedCount, color }) => (
   </TouchableOpacity>
 );
 
-const RecipeRowItem = ({ title, time, xp }) => (
+const RecipeRowItem = ({ title, time, xp }: RecipeRowItemProps) => (
   <TouchableOpacity style={styles.rowItem}>
     <View style={styles.rowText}>
       <Text style={styles.rowTitle}>{title}</Text>

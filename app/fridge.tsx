@@ -99,7 +99,7 @@ export default function FridgeScreen() {
     }
   }, [cat]);
 
-  const getDaysRemaining = (expiryDate) => {
+  const getDaysRemaining = (expiryDate: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const expiry = new Date(expiryDate);

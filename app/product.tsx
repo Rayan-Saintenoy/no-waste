@@ -1,41 +1,72 @@
 import db from "@/app/database/database";
 import { Feather } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker"; // Ajouté
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker"; // Ajouté
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
-  Platform, // Ajouté
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+interface Product {
+  code_barre: string;
+  nom_produit: string;
+  marque: string;
+  image_url: string;
+  quantite_brute: string;
+  categories: string;
+  categories_hierarchy: string;
+  poids_kg: number;
+  prix_achat: number,
+  date_peremption: string;
+  date_ajout: string,
+  statut: string; 
+} 
+
 export default function ProductDetailScreen() {
+  const [stats_price_enabled, setStats_price_enabled] = useState();
+  
+  const fetchUser = async () => {
+    try {
+      const result = (await db.getFirstAsync(`SELECT stats_price_enabled FROM utilisateur LIMIT 1`));
+      if (result) {
+        setStats_price_enabled(result.stats_price_enabled);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération des stats :", error);
+    }
+  };
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const productId = typeof id === "string" ? id : Array.isArray(id) ? id[0] : null;
 
-  const [product, setProduct] = useState(null);
+  const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ÉTATS POUR LA DATE (AJOUTÉS)
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState(new Date());
 
-  // 1. Charger le produit depuis la DB au montage
+  const [price, setPrice] = useState("");
+
   const loadProduct = async () => {
-    if (!id) return;
+    if (!productId) return;
     try {
-      const result = await db.getFirstAsync("SELECT * FROM produits WHERE id = ?", [id]);
-      if (result) {
+      const dbresult = await db.getFirstAsync("SELECT * FROM produits WHERE id = ?", [productId]);
+      if (dbresult) {
+        const result = dbresult as Product;
         setProduct(result);
-        setTempDate(new Date(result.date_peremption)); // Init la date pour le picker
+        setTempDate(new Date(result.date_peremption));
       } else {
         Alert.alert("Erreur", "Produit introuvable dans la base de données.");
         router.back();
@@ -48,11 +79,11 @@ export default function ProductDetailScreen() {
   };
 
   useEffect(() => {
+    fetchUser();
     loadProduct();
   }, [id]);
 
-  // LOGIQUE DE MISE À JOUR DE LA DATE (AJOUTÉE)
-  const onDateChange = (event, selectedDate) => {
+  const onDateChange = (_event: DateTimePickerEvent, selectedDate: Date | undefined) => {
     if (Platform.OS === "android") {
       setShowDatePicker(false);
       if (selectedDate) {
@@ -63,18 +94,44 @@ export default function ProductDetailScreen() {
     }
   };
 
-  const confirmDateUpdate = async (date) => {
+  const confirmDateUpdate = async (date: Date) => {
     const dateStr = date.toISOString().split("T")[0];
     try {
-      await db.runAsync("UPDATE produits SET date_peremption = ? WHERE id = ?", [dateStr, id]);
+      await db.runAsync("UPDATE produits SET date_peremption = ? WHERE id = ?", [dateStr, productId]);
       setShowDatePicker(false);
-      loadProduct(); // Rafraîchir l'affichage
+      loadProduct();
     } catch (error) {
       Alert.alert("Erreur", "Impossible de modifier la date.");
     }
   };
 
-  // 2. Logique de consommation + mise à jour stats + suppression
+  const handleWasted = async () => {
+    if (!product) return;
+
+    try {
+      await db.withTransactionAsync(async () => {
+        await db.runAsync("DELETE FROM produits WHERE id = ?", [productId]);
+      });
+      
+      if (!product.prix_achat || stats_price_enabled == 0) {
+      Alert.alert(
+        "Dommage ! 🥲",
+        `Vous n'avez pas sauvé ${product.nom_produit}.\n${product.poids_kg}kg n'iras pas sur votre profils.`,
+      );
+    } else {
+      Alert.alert(
+        "Dommage ! 🥲",
+        `Vous n'avez pas sauvé ${product.nom_produit}.\n${product.poids_kg}kg et ${product.prix_achat.toFixed(2)}€ n'irons pas sur votre profils.`,
+      );
+    }
+    
+      router.replace("/fridge");
+    } catch (error) {
+      console.error("Erreur lors de la transaction :", error);
+      Alert.alert("Erreur", "Une erreur est survenue lors de la mise à jour de vos statistiques.");
+    }
+  };
+
   const handleConsume = async () => {
     if (!product) return;
 
@@ -88,7 +145,7 @@ export default function ProductDetailScreen() {
           [product.poids_kg || 0, product.prix_achat || 0],
         );
 
-        await db.runAsync("DELETE FROM produits WHERE id = ?", [id]);
+        await db.runAsync("DELETE FROM produits WHERE id = ?", [productId]);
       });
 
       Alert.alert(
@@ -102,6 +159,52 @@ export default function ProductDetailScreen() {
       Alert.alert("Erreur", "Une erreur est survenue lors de la mise à jour de vos statistiques.");
     }
   };
+
+  const handleUpdatePrice = async () => {
+    if (!price) {
+      Alert.alert(
+        "NOOOON ! 🥲",
+        `Le prix n'a pas été ajouté.`,
+      );
+      return;
+    }
+
+    const priceValue = parseFloat(price.replace(",", "."));
+    if (Number.isNaN(priceValue)) {
+      Alert.alert("Erreur", "Veuillez saisir un prix valide.");
+      return;
+    }
+
+    try {
+      await db.withTransactionAsync(async () => {
+        await db.runAsync(
+          `UPDATE produits
+           SET prix_achat = COALESCE(prix_achat, 0) + ?
+           WHERE id = ?`,
+          [priceValue, productId],
+        );
+      });
+
+      Alert.alert(
+        "Bravo ! 🎉",
+        `Le prix a bien été ajouté.`,
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              if (productId) {
+                setPrice("");
+                router.replace(`/product?id=${productId}`);
+              }
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      console.error("Erreur lors de la transaction :", error);
+      Alert.alert("Erreur", "Une erreur est survenue lors de la mise à jour du prix.");
+    }
+  }
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} color="#1B5E20" />;
   if (!product) return null;
@@ -148,10 +251,34 @@ export default function ProductDetailScreen() {
 
         {/* Détails financiers et dates */}
         <View style={styles.detailsGrid}>
-          <View style={styles.detailBox}>
-            <Text style={styles.detailLabel}>Prix payé</Text>
-            <Text style={styles.detailValue}>{product.prix_achat.toFixed(2)} €</Text>
-          </View>
+          {Number(stats_price_enabled) === 1 ? (
+            product.prix_achat ? (
+                <View style={styles.detailBox}>
+                  <Text style={styles.detailLabel}>Prix payé</Text>
+                  <Text style={styles.detailValue}>{product.prix_achat.toFixed(2)} €</Text>
+                </View>
+              ) : (
+                <View style={styles.detailBox}>
+                  <Text style={styles.detailLabel}>Prix payé</Text>
+                  <View style={styles.inputArea}>
+                    <TextInput 
+                      style={styles.priceInput}
+                      placeholder="Ex: 2.50"
+                      keyboardType="numeric"
+                      value={price}
+                      onChangeText={setPrice}
+                      onBlur={handleUpdatePrice}>
+                    </TextInput>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end" }}>
+                        <Text style={{ marginRight: 8 }}>€</Text>
+                        <Feather name="tag" size={20} color="#2E7D32" />
+                    </View>
+                  </View>
+                </View>
+              )
+            ) : null
+          }
+          
           <View style={styles.detailBox}>
             <Text style={styles.detailLabel}>Ajouté le</Text>
             <Text style={styles.detailValue}>
@@ -210,6 +337,10 @@ export default function ProductDetailScreen() {
           <Feather name="check-circle" size={22} color="white" style={{ marginRight: 10 }} />
           <Text style={styles.consumeButtonText}>J'ai consommé ce produit</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.wastedButton} onPress={handleWasted}>
+          <Feather name="check-circle" size={22} color="white" style={{ marginRight: 10 }} />
+          <Text style={styles.wastedButtonText}>Je n'ai pas consommé ce produit</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -260,7 +391,7 @@ const styles = StyleSheet.create({
   },
   expiryLabel: { marginLeft: 10, fontSize: 16, color: "#333" },
   expiryDate: { fontSize: 16, fontWeight: "800", color: "#C62828" },
-  infoText: { marginTop: 20, textAlign: "center", color: "#999", fontSize: 13, lineHeight: 18 },
+  infoText: { marginTop: 20, textAlign: "center", color: "#999", fontSize: 13, lineHeight: 18, marginBottom: 50},
   footer: {
     position: "absolute",
     bottom: 0,
@@ -281,7 +412,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     elevation: 4,
   },
-  consumeButtonText: { color: "white", fontWeight: "800", fontSize: 18 },
+  consumeButtonText: { color: "white", fontWeight: "800", fontSize: 16 },
+
+  wastedButton: {
+    marginTop: 10,
+    backgroundColor: "#C62828",
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 4,
+  },
+  wastedButtonText: { color: "white", fontWeight: "800", fontSize: 16 },
 
   // STYLES DU PICKER (AJOUTÉS)
   iosPickerContainer: {
@@ -311,4 +455,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
   },
+
+  priceInput: { flex: 1, padding: 15, fontSize: 16, fontWeight: "600" },
+
+  inputArea: { flex: 1, flexDirection: "row", }
 });
