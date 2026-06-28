@@ -1,3 +1,5 @@
+import CATEGORY_LOOKUP from "@/app/categories/category_lookup.json";
+import { getCategoryStyle } from "@/app/categories/getCategoryStyle";
 import db from "@/app/database/database";
 import { Feather } from "@expo/vector-icons";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
@@ -13,77 +15,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const getCategoryStyle = (item) => {
-  const hierarchy = (item.categories_hierarchy || "").toString().toLowerCase();
-  const tags = (item.categories_tags || "").toString().toLowerCase();
-  const name = (item.nom_produit || "").toLowerCase();
-  const searchZone = `${hierarchy} ${tags} ${name}`;
-
-  if (
-    searchZone.includes("spreads") ||
-    searchZone.includes("nutella") ||
-    searchZone.includes("jam") ||
-    searchZone.includes("confiture") ||
-    searchZone.includes("honey") ||
-    searchZone.includes("miel")
-  ) {
-    return { icon: "box", color: "#F5F5F5", iconCol: "#757575", type: "autre" };
-  }
-
-  if (
-    searchZone.includes("meats") ||
-    searchZone.includes("viande") ||
-    searchZone.includes("fish") ||
-    searchZone.includes("poisson") ||
-    searchZone.includes("charcuterie") ||
-    searchZone.includes("poulet") ||
-    searchZone.includes("chicken") ||
-    searchZone.includes("steak")
-  ) {
-    return { icon: "shopping-bag", color: "#FFEBEE", iconCol: "#EF5350", type: "viande" };
-  }
-
-  if (
-    searchZone.includes("dairies") ||
-    searchZone.includes("laitier") ||
-    searchZone.includes("cheese") ||
-    searchZone.includes("fromage") ||
-    searchZone.includes("yogurt") ||
-    searchZone.includes("yaourt") ||
-    searchZone.includes("lait") ||
-    searchZone.includes("emmental") ||
-    searchZone.includes("beurre")
-  ) {
-    return { icon: "package", color: "#FFF9C4", iconCol: "#FBC02D", type: "laitiers" };
-  }
-
-  if (
-    searchZone.includes("beverages") ||
-    searchZone.includes("boisson") ||
-    searchZone.includes("eau") ||
-    searchZone.includes("water") ||
-    searchZone.includes("soda") ||
-    searchZone.includes("cola") ||
-    searchZone.includes("juice") ||
-    searchZone.includes("jus") ||
-    searchZone.includes("drink")
-  ) {
-    return { icon: "droplet", color: "#E3F2FD", iconCol: "#2196F3", type: "boissons" };
-  }
-
-  if (
-    searchZone.includes("plant-based") ||
-    searchZone.includes("vegetable") ||
-    searchZone.includes("legume") ||
-    searchZone.includes("fruit") ||
-    searchZone.includes("salade")
-  ) {
-    return { icon: "leaf", color: "#E8F5E9", iconCol: "#4CAF50", type: "legumes" };
-  }
-
-  return { icon: "box", color: "#F5F5F5", iconCol: "#757575", type: "autre" };
-};
-
 export default function FridgeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -94,16 +25,14 @@ export default function FridgeScreen() {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    if (cat) {
-      setActiveTab(cat as string);
-    }
+    if (cat) setActiveTab(cat as string);
   }, [cat]);
 
   const getDaysRemaining = (expiryDate: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const expiry = new Date(expiryDate);
-    return Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+    return Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   };
 
   const fetchInventory = async () => {
@@ -112,17 +41,15 @@ export default function FridgeScreen() {
       const result = await db.getAllAsync(
         "SELECT * FROM produits WHERE statut = 'dans_le_frigo' ORDER BY date_peremption ASC",
       );
-
       const processedItems = result.map((item) => {
-        const style = getCategoryStyle(item);
+        const style = getCategoryStyle(item, CATEGORY_LOOKUP);
         return {
           ...item,
           daysLeft: getDaysRemaining(item.date_peremption),
-          categoryType: style.type,
-          style: style,
+          categoryType: style.types,
+          style,
         };
       });
-
       setItems(processedItems);
     } catch (error) {
       console.error("Erreur SQL:", error);
@@ -136,7 +63,7 @@ export default function FridgeScreen() {
   }, []);
 
   const filteredItems = items.filter(
-    (item) => activeTab === "tous" || item.categoryType === activeTab,
+    (item) => activeTab === "tous" || item.categoryType.includes(activeTab),
   );
 
   const urgentItems = filteredItems.filter((i) => i.daysLeft <= 3);
@@ -172,12 +99,28 @@ export default function FridgeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabScroll}
         >
+          {/* Les id doivent correspondre EXACTEMENT aux valeurs retournées par getCategoryStyle */}
           <TabItem id="tous" label="Tout" active={activeTab} onPress={setActiveTab} />
-          {/* NOUVEAU BOUTON VIANDE & POISSON */}
-          <TabItem id="viande" label="🥩 Viandes" active={activeTab} onPress={setActiveTab} />
+          <TabItem id="viandes" label="🥩 Viandes" active={activeTab} onPress={setActiveTab} />
           <TabItem id="laitiers" label="🥛 Laitiers" active={activeTab} onPress={setActiveTab} />
           <TabItem id="legumes" label="🥬 Légumes" active={activeTab} onPress={setActiveTab} />
           <TabItem id="boissons" label="💧 Boissons" active={activeTab} onPress={setActiveTab} />
+          <TabItem id="congelés" label="🧊 Congelés" active={activeTab} onPress={setActiveTab} />
+          <TabItem
+            id="boulangerie"
+            label="🥖 Boulangerie"
+            active={activeTab}
+            onPress={setActiveTab}
+          />
+          <TabItem id="féculents" label="🍝 Féculents" active={activeTab} onPress={setActiveTab} />
+          <TabItem id="sucreries" label="🍫 Sucreries" active={activeTab} onPress={setActiveTab} />
+          <TabItem
+            id="condiments"
+            label="🫙 Condiments"
+            active={activeTab}
+            onPress={setActiveTab}
+          />
+          <TabItem id="plats" label="🍽️ Plats" active={activeTab} onPress={setActiveTab} />
           <TabItem id="autre" label="📦 Autres" active={activeTab} onPress={setActiveTab} />
         </ScrollView>
       </View>

@@ -26,18 +26,18 @@ interface Product {
   categories: string;
   categories_hierarchy: string;
   poids_kg: number;
-  prix_achat: number,
+  prix_achat: number;
   date_peremption: string;
-  date_ajout: string,
-  statut: string; 
-} 
+  date_ajout: string;
+  statut: string;
+}
 
 export default function ProductDetailScreen() {
   const [stats_price_enabled, setStats_price_enabled] = useState();
-  
+
   const fetchUser = async () => {
     try {
-      const result = (await db.getFirstAsync(`SELECT stats_price_enabled FROM utilisateur LIMIT 1`));
+      const result = await db.getFirstAsync(`SELECT stats_price_enabled FROM utilisateur LIMIT 1`);
       if (result) {
         setStats_price_enabled(result.stats_price_enabled);
       }
@@ -97,7 +97,10 @@ export default function ProductDetailScreen() {
   const confirmDateUpdate = async (date: Date) => {
     const dateStr = date.toISOString().split("T")[0];
     try {
-      await db.runAsync("UPDATE produits SET date_peremption = ? WHERE id = ?", [dateStr, productId]);
+      await db.runAsync("UPDATE produits SET date_peremption = ? WHERE id = ?", [
+        dateStr,
+        productId,
+      ]);
       setShowDatePicker(false);
       loadProduct();
     } catch (error) {
@@ -112,19 +115,19 @@ export default function ProductDetailScreen() {
       await db.withTransactionAsync(async () => {
         await db.runAsync("DELETE FROM produits WHERE id = ?", [productId]);
       });
-      
+
       if (!product.prix_achat || stats_price_enabled == 0) {
-      Alert.alert(
-        "Dommage ! 🥲",
-        `Vous n'avez pas sauvé ${product.nom_produit}.\n${product.poids_kg}kg n'iras pas sur votre profils.`,
-      );
-    } else {
-      Alert.alert(
-        "Dommage ! 🥲",
-        `Vous n'avez pas sauvé ${product.nom_produit}.\n${product.poids_kg}kg et ${product.prix_achat.toFixed(2)}€ n'irons pas sur votre profils.`,
-      );
-    }
-    
+        Alert.alert(
+          "Dommage ! 🥲",
+          `Vous n'avez pas sauvé ${product.nom_produit}.\n${product.poids_kg}kg n'iras pas sur votre profils.`,
+        );
+      } else {
+        Alert.alert(
+          "Dommage ! 🥲",
+          `Vous n'avez pas sauvé ${product.nom_produit}.\n${product.poids_kg}kg et ${product.prix_achat.toFixed(2)}€ n'irons pas sur votre profils.`,
+        );
+      }
+
       router.replace("/fridge");
     } catch (error) {
       console.error("Erreur lors de la transaction :", error);
@@ -162,10 +165,7 @@ export default function ProductDetailScreen() {
 
   const handleUpdatePrice = async () => {
     if (!price) {
-      Alert.alert(
-        "NOOOON ! 🥲",
-        `Le prix n'a pas été ajouté.`,
-      );
+      Alert.alert("NOOOON ! 🥲", `Le prix n'a pas été ajouté.`);
       return;
     }
 
@@ -185,26 +185,22 @@ export default function ProductDetailScreen() {
         );
       });
 
-      Alert.alert(
-        "Bravo ! 🎉",
-        `Le prix a bien été ajouté.`,
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              if (productId) {
-                setPrice("");
-                router.replace(`/product?id=${productId}`);
-              }
-            },
+      Alert.alert("Bravo ! 🎉", `Le prix a bien été ajouté.`, [
+        {
+          text: "OK",
+          onPress: () => {
+            if (productId) {
+              setPrice("");
+              router.replace(`/product?id=${productId}`);
+            }
           },
-        ],
-      );
+        },
+      ]);
     } catch (error) {
       console.error("Erreur lors de la transaction :", error);
       Alert.alert("Erreur", "Une erreur est survenue lors de la mise à jour du prix.");
     }
-  }
+  };
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} color="#1B5E20" />;
   if (!product) return null;
@@ -253,32 +249,37 @@ export default function ProductDetailScreen() {
         <View style={styles.detailsGrid}>
           {Number(stats_price_enabled) === 1 ? (
             product.prix_achat ? (
-                <View style={styles.detailBox}>
-                  <Text style={styles.detailLabel}>Prix payé</Text>
-                  <Text style={styles.detailValue}>{product.prix_achat.toFixed(2)} €</Text>
-                </View>
-              ) : (
-                <View style={styles.detailBox}>
-                  <Text style={styles.detailLabel}>Prix payé</Text>
-                  <View style={styles.inputArea}>
-                    <TextInput 
-                      style={styles.priceInput}
-                      placeholder="Ex: 2.50"
-                      keyboardType="numeric"
-                      value={price}
-                      onChangeText={setPrice}
-                      onBlur={handleUpdatePrice}>
-                    </TextInput>
-                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end" }}>
-                        <Text style={{ marginRight: 8 }}>€</Text>
-                        <Feather name="tag" size={20} color="#2E7D32" />
-                    </View>
+              <View style={styles.detailBox}>
+                <Text style={styles.detailLabel}>Prix payé</Text>
+                <Text style={styles.detailValue}>{product.prix_achat.toFixed(2)} €</Text>
+              </View>
+            ) : (
+              <View style={styles.detailBox}>
+                <Text style={styles.detailLabel}>Prix payé</Text>
+                <View style={styles.inputArea}>
+                  <TextInput
+                    style={styles.priceInput}
+                    placeholder="Ex: 2.50"
+                    keyboardType="numeric"
+                    value={price}
+                    onChangeText={setPrice}
+                    onBlur={handleUpdatePrice}
+                  ></TextInput>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    <Text style={{ marginRight: 8 }}>€</Text>
+                    <Feather name="tag" size={20} color="#2E7D32" />
                   </View>
                 </View>
-              )
-            ) : null
-          }
-          
+              </View>
+            )
+          ) : null}
+
           <View style={styles.detailBox}>
             <Text style={styles.detailLabel}>Ajouté le</Text>
             <Text style={styles.detailValue}>
@@ -391,7 +392,14 @@ const styles = StyleSheet.create({
   },
   expiryLabel: { marginLeft: 10, fontSize: 16, color: "#333" },
   expiryDate: { fontSize: 16, fontWeight: "800", color: "#C62828" },
-  infoText: { marginTop: 20, textAlign: "center", color: "#999", fontSize: 13, lineHeight: 18, marginBottom: 50},
+  infoText: {
+    marginTop: 20,
+    textAlign: "center",
+    color: "#999",
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 50,
+  },
   footer: {
     position: "absolute",
     bottom: 0,
@@ -458,5 +466,5 @@ const styles = StyleSheet.create({
 
   priceInput: { flex: 1, padding: 15, fontSize: 16, fontWeight: "600" },
 
-  inputArea: { flex: 1, flexDirection: "row", }
+  inputArea: { flex: 1, flexDirection: "row" },
 });

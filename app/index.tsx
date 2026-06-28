@@ -1,5 +1,5 @@
 import db from "@/app/database/database";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Link, Redirect, useFocusEffect } from "expo-router";
 import { Beef, Carrot, ChevronRight, CupSoda, Maximize, Milk, User } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
@@ -11,7 +11,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -132,7 +132,7 @@ function HomeScreenContent() {
         <Text style={styles.sectionTitle}>Mes Catégories</Text>
         <View style={styles.categoriesGrid}>
           <CategoryCard
-            href="/fridge?cat=viande"
+            href="/fridge?cat=viandes"
             IconComponent={Beef}
             name="Viandes"
             color="#F3E5F5"
@@ -190,10 +190,15 @@ function HomeScreenContent() {
   );
 }
 
-// COMPOSANT CATEGORYCARD MODIFIÉ
-const CategoryCard: React.FC<CategoryCardProps> = ({ href, IconComponent, name, color, iconCol }) => (
+const CategoryCard: React.FC<CategoryCardProps> = ({
+  href,
+  IconComponent,
+  name,
+  color,
+  iconCol,
+}) => (
   <Link href={href} replace asChild>
-    <TouchableOpacity style={[styles.categoryCard, { backgroundColor: color }]}> 
+    <TouchableOpacity style={[styles.categoryCard, { backgroundColor: color }]}>
       <View style={styles.iconCircle}>
         <IconComponent size={22} color={iconCol} />
       </View>
@@ -205,7 +210,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ href, IconComponent, name, 
 const FoodItem: React.FC<FoodItemProps> = ({ id, name, days, color, image }) => (
   <Link href={{ pathname: "/product", params: { id: id.toString() } }} replace asChild>
     <TouchableOpacity style={styles.foodItem}>
-      <View style={[styles.foodIconContainer, { backgroundColor: color }]}> 
+      <View style={[styles.foodIconContainer, { backgroundColor: color }]}>
         {image ? (
           <Image source={{ uri: image }} style={styles.foodImage} />
         ) : (
@@ -227,18 +232,18 @@ export default function App() {
   const clearAllData = async () => {
     try {
       await AsyncStorage.clear();
-      console.log('Cache vidé avec succès !');
+      console.log("Cache vidé avec succès !");
     } catch (e) {
-      console.error('Erreur lors du nettoyage du cache :', e);
+      console.error("Erreur lors du nettoyage du cache :", e);
     }
   };
 
   useEffect(() => {
-    clearAllData();
+    //clearAllData();
     async function checkFirstLaunch() {
       try {
-        const hasOnboarded = await AsyncStorage.getItem('@onboarding_complete');
-        if (hasOnboarded === 'true') {
+        const hasOnboarded = await AsyncStorage.getItem("@onboarding_complete");
+        if (hasOnboarded === "true") {
           setIsFirstLaunch(false);
         } else {
           setIsFirstLaunch(true);
@@ -247,13 +252,13 @@ export default function App() {
         setIsFirstLaunch(true);
       }
     }
-    
+
     checkFirstLaunch();
   }, []);
 
   if (isFirstLaunch === null) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#4CAF50" />
       </View>
     );

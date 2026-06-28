@@ -27,12 +27,9 @@ export default function NotificationSettings() {
     loadSettings();
   }, []);
 
-  const saveSettings = async (enabled) => {
+  const saveSettings = async (enabled: number) => {
     try {
-      await db.runAsync(
-        "UPDATE utilisateur SET stats_price_enabled = ?",
-        [enabled ? 1 : 0],
-      );
+      await db.runAsync("UPDATE utilisateur SET stats_price_enabled = ?", [enabled ? 1 : 0]);
     } catch (error) {
       Alert.alert("Erreur", "Impossible de sauvegarder vos préférences.");
     }
@@ -59,7 +56,8 @@ export default function NotificationSettings() {
         <View style={styles.illustrationCard}>
           <Feather name="heart" size={50} color="#2E7D32" />
           <Text style={styles.infoText}>
-            Rendez-vous compte des économie réaliser avec NoWaste ! Remplisser le prix de vos produit afin d'avoir une statistique.
+            Rendez-vous compte des économie réaliser avec NoWaste ! Remplisser le prix de vos
+            produit afin d'avoir une statistique.
           </Text>
         </View>
 

@@ -5,7 +5,6 @@ const db = SQLite.openDatabaseSync("antigaspi.db");
 export const initDatabase = () => {
   db.withTransactionSync(() => {
     db.execSync(`
-      DROP TABLE IF EXISTS utilisateur;
       CREATE TABLE IF NOT EXISTS utilisateur (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT,
@@ -20,7 +19,6 @@ export const initDatabase = () => {
     `);
 
     db.execSync(`
-      DROP TABLE IF EXISTS produits;
       CREATE TABLE IF NOT EXISTS produits (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           code_barre TEXT,
@@ -43,6 +41,9 @@ export const initDatabase = () => {
       VALUES (1, 'Doe', 'John', 'john.doe@exemple.com', 0.0, 0.0);
     `);*/
   });
-};
 
+  /*const allProduits = db.getAllSync(`SELECT * FROM produits;`);
+
+  console.log("Contenu de la table produits :", allProduits)*/
+};
 export default db;
