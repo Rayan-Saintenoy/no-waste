@@ -1,28 +1,16 @@
-/**
- * Classifieur de catégories — Open Food Facts taxonomy v3
- * Multi-catégories : un produit peut appartenir à plusieurs catégories simultanément.
- */
-
 export type CategoryType =
   | "viandes"
   | "laitiers"
   | "legumes"
   | "boissons"
-  | "congelés"
-  | "boulangerie"
-  | "féculents"
-  | "sucreries"
   | "condiments"
-  | "plats"
   | "autre";
 
 export interface CategoryStyle {
   icon: string;
   color: string;
   iconCol: string;
-  // La catégorie "principale" pour l'affichage de l'icône/couleur
   type: CategoryType;
-  // Toutes les catégories du produit (pour le filtrage multi-onglets)
   types: CategoryType[];
 }
 
@@ -31,69 +19,101 @@ export const CATEGORY_STYLES: Record<CategoryType, Omit<CategoryStyle, "types">>
   laitiers: { icon: "package", color: "#FFF9C4", iconCol: "#FBC02D", type: "laitiers" },
   legumes: { icon: "leaf", color: "#E8F5E9", iconCol: "#4CAF50", type: "legumes" },
   boissons: { icon: "droplet", color: "#E3F2FD", iconCol: "#2196F3", type: "boissons" },
-  congelés: { icon: "wind", color: "#E0F7FA", iconCol: "#00ACC1", type: "congelés" },
-  boulangerie: { icon: "sun", color: "#FFF3E0", iconCol: "#FB8C00", type: "boulangerie" },
-  féculents: { icon: "layers", color: "#F3E5F5", iconCol: "#8E24AA", type: "féculents" },
-  sucreries: { icon: "heart", color: "#FCE4EC", iconCol: "#E91E63", type: "sucreries" },
   condiments: { icon: "thermometer", color: "#EFEBE9", iconCol: "#6D4C41", type: "condiments" },
-  plats: { icon: "coffee", color: "#F1F8E9", iconCol: "#7CB342", type: "plats" },
   autre: { icon: "box", color: "#F5F5F5", iconCol: "#757575", type: "autre" },
 };
 
-// Ordre de priorité pour choisir l'icône/couleur principale uniquement
 const PRIORITY: CategoryType[] = [
   "viandes",
   "laitiers",
-  "congelés",
   "legumes",
   "boissons",
-  "plats",
-  "boulangerie",
-  "sucreries",
-  "féculents",
   "condiments",
 ];
 
-function normalizeKey(raw: string): string {
-  return raw
-    .trim()
-    .toLowerCase()
-    .replace(/^[a-z]{2,3}:/, "")
-    .replace(/\s+/g, "-");
+function extractText(field: unknown): string {
+  if (!field) return "";
+  let text = String(field).toLowerCase();
+  
+  // Enlever les accents
+  text = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  // Remplacer ponctuation/tirets par des espaces
+  text = text.replace(/[^a-z0-9]/g, " ");
+  text = ` ${text} `.replace(/\s+/g, " ");
+  
+  // CORRECTION : On ratisse large pour amputer le mot "boissons" de toutes 
+  // les macro-catégories végétales, qu'elles soient aux légumes, fruits ou végétaux.
+  text = text.replace(/ plant based foods and beverages /g, " plant based foods ");
+  text = text.replace(/ aliments et boissons a base de /g, " aliments a base de ");
+  
+  return text;
 }
 
-function extractKeys(field: unknown): string[] {
-  if (!field) return [];
-  return String(field)
-    .replace(/[\[\]"]/g, "")
-    .split(/[,|;\s]+/)
-    .flatMap((part) => {
-      const full = part.trim().toLowerCase();
-      const slug = normalizeKey(part);
-      return full && slug && full !== slug ? [full, slug] : full ? [full] : [];
-    });
+function hasKeyword(text: string, includes: string[], excludes: string[] = []): boolean {
+  const matchWord = (kw: string) => 
+    text.includes(` ${kw} `) || 
+    text.includes(` ${kw}s `) || 
+    text.includes(` ${kw}x `);
+  
+  if (!includes.some(matchWord)) return false;
+  return !excludes.some(matchWord);
 }
 
-export function getCategoryStyle(
-  item: Record<string, unknown>,
-  lookup: Record<string, string>,
-): CategoryStyle {
-  const keys = [...extractKeys(item.categories_hierarchy), ...extractKeys(item.categories_tags)];
+export function getCategoryStyle(item: Record<string, unknown>): CategoryStyle {
+  // Fusion totale : tags de catégories + noms du produit
+  const allText = extractText(item.categories_hierarchy) + 
+                  extractText(item.categories_tags) + 
+                  extractText(item.product_name) + 
+                  extractText(item.product_name_fr);
 
   const found = new Set<CategoryType>();
 
-  // Détection directe "frozen"/"surgel" → congelés dans tous les cas
-  const allText = keys.join(" ");
-  if (allText.includes("frozen") || allText.includes("surgel")) {
-    found.add("congelés");
+  // --- VIANDES ---
+  if (hasKeyword(
+    allText, 
+    ["meat", "viande", "beef", "boeuf", "chicken", "poulet", "pork", "porc", "sausage", "saucisse"], 
+    ["vegan", "vegetalien", "vegetarien", "vegetarian", "meat free", "plant based"]
+  )) {
+    found.add("viandes");
   }
 
-  for (const key of keys) {
-    const cat = lookup[key] as CategoryType | undefined;
-    if (cat) found.add(cat);
+  // --- LAITIERS ---
+  if (hasKeyword(
+    allText, 
+    ["dairy", "dairies", "laitier", "milk", "lait", "cheese", "fromage", "butter", "beurre", "yogurt", "yaourt", "cream", "creme"], 
+    ["vegan", "vegetalien", "soy", "soja", "almond", "amande", "oat", "avoine", "coconut", "coco", "rice", "riz", "plant based"]
+  )) {
+    found.add("laitiers");
   }
 
-  // Catégorie principale = première dans l'ordre de priorité
+  // --- FRUITS ET LÉGUMES ---
+  if (hasKeyword(
+    allText, 
+    ["fruit", "vegetable", "legume", "apple", "pomme", "salad", "salade", "tomato", "tomate", "carrot", "carotte"], 
+    ["candy", "bonbon", "syrup", "sirop", "juice", "jus", "nectar", "smoothie", "compote", "jam", "confiture", "marmalade", "puree", "mash", "soup", "soupe", "veloute", "sauce", "ketchup", "extract", "extrait", "aroma", "arome", "concentrate", "concentre", "canned", "conserve", "tin", "chip", "dried", "seche"]
+  )) {
+    found.add("legumes");
+  }
+
+  // --- BOISSONS ---
+  if (hasKeyword(
+    allText, 
+    ["beverage", "drink", "boisson", "juice", "jus", "water", "eau", "soda", "tea", "the", "coffee", "cafe"],
+    // CORRECTION : Ajout des conserves et concentrés aux exclusions
+    ["compote", "puree", "mash", "jam", "confiture", "marmalade", "sauce", "concentrate", "concentre", "canned", "conserve", "tin"]
+  )) {
+    found.add("boissons");
+  }
+
+  // --- CONDIMENTS ---
+  if (hasKeyword(
+    allText, 
+    ["condiment", "sauce", "spice", "epice", "mustard", "moutarde", "ketchup", "mayonnaise", "dressing"]
+  )) {
+    found.add("condiments");
+  }
+
   const mainType = PRIORITY.find((cat) => found.has(cat)) ?? "autre";
   const types = found.size > 0 ? [...found] : ["autre" as CategoryType];
 

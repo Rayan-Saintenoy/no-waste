@@ -103,24 +103,9 @@ export default function FridgeScreen() {
           <TabItem id="tous" label="Tout" active={activeTab} onPress={setActiveTab} />
           <TabItem id="viandes" label="🥩 Viandes" active={activeTab} onPress={setActiveTab} />
           <TabItem id="laitiers" label="🥛 Laitiers" active={activeTab} onPress={setActiveTab} />
-          <TabItem id="legumes" label="🥬 Légumes" active={activeTab} onPress={setActiveTab} />
+          <TabItem id="legumes" label="🍎🥬 Fruits & Légumes" active={activeTab} onPress={setActiveTab} />
           <TabItem id="boissons" label="💧 Boissons" active={activeTab} onPress={setActiveTab} />
-          <TabItem id="congelés" label="🧊 Congelés" active={activeTab} onPress={setActiveTab} />
-          <TabItem
-            id="boulangerie"
-            label="🥖 Boulangerie"
-            active={activeTab}
-            onPress={setActiveTab}
-          />
-          <TabItem id="féculents" label="🍝 Féculents" active={activeTab} onPress={setActiveTab} />
-          <TabItem id="sucreries" label="🍫 Sucreries" active={activeTab} onPress={setActiveTab} />
-          <TabItem
-            id="condiments"
-            label="🫙 Condiments"
-            active={activeTab}
-            onPress={setActiveTab}
-          />
-          <TabItem id="plats" label="🍽️ Plats" active={activeTab} onPress={setActiveTab} />
+          <TabItem id="condiments" label="🫙 Condiments" active={activeTab} onPress={setActiveTab} />
           <TabItem id="autre" label="📦 Autres" active={activeTab} onPress={setActiveTab} />
         </ScrollView>
       </View>

@@ -1,5 +1,6 @@
 import db from "@/app/database/database";
 import { scheduleExpiryNotification } from "@/app/utils/notification";
+import AddProductScreen from "@/components/image-picker";
 import { Feather } from "@expo/vector-icons";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -43,6 +44,7 @@ export default function ScanScreen() {
     prix: "",
     categorie: "legumes",
     date: new Date().toISOString().split("T")[0],
+    image_uri: null as string | null, // <-- Ajout de l'état pour l'image
   });
 
   if (!permission) return <View style={styles.container} />;
@@ -106,10 +108,11 @@ export default function ScanScreen() {
     }
 
     try {
+      // Ajout de image_path dans l'INSERT et du point d'interrogation correspondant
       await db.runAsync(
         `INSERT INTO produits (
-        nom_produit, marque, quantite_brute, poids_kg, prix_achat, categories_hierarchy, date_peremption, statut
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'dans_le_frigo')`,
+        nom_produit, marque, quantite_brute, poids_kg, prix_achat, categories_hierarchy, date_peremption, statut, image_path
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'dans_le_frigo', ?)`,
         [
           form.nom,
           form.marque,
@@ -118,6 +121,7 @@ export default function ScanScreen() {
           parseFloat(form.prix.replace(",", ".")) || 0,
           form.categorie,
           form.date,
+          form.image_uri, // <-- Ajout de l'image
         ],
       );
       setModalVisible(false);
@@ -261,7 +265,7 @@ export default function ScanScreen() {
 
                   <View style={styles.row}>
                     <View style={{ width: "100%" }}>
-                      <Text style={styles.inputLabel}>Prix (€)</Text>
+                      <Text style={styles.inputLabel}>Prix (€) Optionnel</Text>
                       <TextInput
                         style={styles.input}
                         placeholder="0.00"
@@ -271,7 +275,7 @@ export default function ScanScreen() {
                     </View>
                   </View>
 
-                  <Text style={styles.inputLabel}>Catégorie</Text>
+                  <Text style={styles.inputLabel}>Catégorie *</Text>
                   <View style={styles.catGrid}>
                     <CatBtn
                       label="Laitiers"
@@ -328,6 +332,13 @@ export default function ScanScreen() {
                       </TouchableOpacity>
                     </View>
                   )}
+
+                  {/* Nouveau composant d'image */}
+                  <Text style={styles.inputLabel}>Photo du produit</Text>
+                  <AddProductScreen 
+                    imageUri={form.image_uri} 
+                    onImageSelected={(uri) => setForm({ ...form, image_uri: uri })} 
+                  />
 
                   <TouchableOpacity style={styles.saveButton} onPress={handleAddManual}>
                     <Text style={styles.saveButtonText}>Ajouter au frigo</Text>
@@ -503,7 +514,7 @@ const styles = StyleSheet.create({
   },
   segmentedControl: {
     flexDirection: "row",
-    backgroundColor: "#F0F0F0", // Fond gris clair type iOS
+    backgroundColor: "#F0F0F0", 
     borderRadius: 12,
     padding: 4,
     height: 50,
@@ -517,7 +528,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   segmentBtnActive: {
-    backgroundColor: "white", // La pilule blanche
+    backgroundColor: "white", 
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -530,7 +541,7 @@ const styles = StyleSheet.create({
     color: "#888",
   },
   segmentTextActive: {
-    color: "#2E7D32", // Texte vert pour l'unité active
+    color: "#2E7D32", 
     fontWeight: "800",
   },
 });

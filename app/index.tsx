@@ -24,6 +24,7 @@ type Product = {
   nom_produit: string;
   date_peremption: string;
   image_url?: string | null;
+  image_path?: string | null;
 };
 
 type UserInfo = {
@@ -61,7 +62,7 @@ function HomeScreenContent() {
         "SELECT COUNT(*) as total FROM produits WHERE date_peremption <= date('now', '+3 days') AND statut = 'dans_le_frigo'",
       )) as { total?: number } | null;
       const recentResult = (await db.getAllAsync(
-        "SELECT id, nom_produit, date_peremption, image_url FROM produits WHERE statut = 'dans_le_frigo' ORDER BY id DESC LIMIT 3",
+        "SELECT id, nom_produit, date_peremption, image_url, image_path FROM produits WHERE statut = 'dans_le_frigo' ORDER BY id DESC LIMIT 3",
       )) as Product[];
 
       setFirstname(userInfo?.firstname || "Utilisateur");
@@ -168,7 +169,7 @@ function HomeScreenContent() {
             key={item.id}
             id={item.id}
             name={item.nom_produit}
-            image={item.image_url}
+            image={item.image_url || item.image_path}
             days={getDaysRemaining(item.date_peremption)}
             color={getDaysRemaining(item.date_peremption) <= 2 ? "#FFCDD2" : "#E8F5E9"}
           />

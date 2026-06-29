@@ -30,6 +30,7 @@ interface Product {
   date_peremption: string;
   date_ajout: string;
   statut: string;
+  image_path: string;
 }
 
 export default function ProductDetailScreen() {
@@ -223,7 +224,11 @@ export default function ProductDetailScreen() {
         {/* Image */}
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: product.image_url }}
+            source={{ 
+              uri: product.image_url && product.image_url.trim() !== "" 
+                ? product.image_url 
+                : product.image_path 
+            }}
             style={styles.productImage}
             resizeMode="contain"
           />
